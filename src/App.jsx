@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LayoutTemplate, ExternalLink, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, LayoutTemplate, ExternalLink, CheckCircle, MoreVertical, Edit2 } from 'lucide-react';
 
 // Subtasks Component for handling local input state
 const Subtasks = ({ subtasks = [], onAdd, onToggle, onDelete }) => {
@@ -60,8 +60,14 @@ function App() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPageName, setNewPageName] = useState('');
   const [newPageUrl, setNewPageUrl] = useState('');
+  const [newPageOldUrl, setNewPageOldUrl] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
   const [pageToDelete, setPageToDelete] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [pageToEdit, setPageToEdit] = useState(null);
+  const [editPageName, setEditPageName] = useState('');
+  const [editPageUrl, setEditPageUrl] = useState('');
+  const [editPageOldUrl, setEditPageOldUrl] = useState('');
 
   // Load from local storage on initial render
   useEffect(() => {
@@ -101,6 +107,7 @@ function App() {
       id: Date.now().toString(),
       name: newPageName.trim(),
       url: newPageUrl.trim(),
+      oldUrl: newPageOldUrl.trim(),
       status: 'not-started',
       remarks: '',
       subtasks: []
@@ -109,6 +116,7 @@ function App() {
     setPages([...pages, newPage]);
     setNewPageName('');
     setNewPageUrl('');
+    setNewPageOldUrl('');
     setShowAddForm(false);
     showToast(`"${newPage.name}" added successfully!`);
   };
@@ -136,6 +144,15 @@ function App() {
     setPages(pages.map(page => 
       page.id === id ? { ...page, name: newName } : page
     ));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editPageName.trim()) return;
+    setPages(pages.map(page => 
+      page.id === pageToEdit.id ? { ...page, name: editPageName.trim(), url: editPageUrl.trim(), oldUrl: editPageOldUrl.trim() } : page
+    ));
+    setPageToEdit(null);
+    showToast(`"${editPageName}" updated successfully!`);
   };
 
   const handleAddSubtask = (pageId, text) => {
@@ -180,19 +197,19 @@ function App() {
     <div className="app-container">
       <header className="header">
         <div>
-          <h1>Pages Design Checklist</h1>
-          <p>Track the development status of your web pages</p>
+          <h1>Project Checklist</h1>
+          <p>Track the development status of your projects</p>
         </div>
         <button className="btn" onClick={() => setShowAddForm(!showAddForm)}>
           <Plus size={18} />
-          {showAddForm ? 'Cancel' : 'Add New Page'}
+          {showAddForm ? 'Cancel' : 'Add New Item'}
         </button>
       </header>
 
       {showAddForm && (
         <form className="add-form-card" onSubmit={handleAddPage}>
           <div className="form-group">
-            <label htmlFor="pageName">Page Name</label>
+            <label htmlFor="pageName">Item Name</label>
             <input 
               type="text" 
               id="pageName"
@@ -204,18 +221,29 @@ function App() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="pageUrl">Page Link (Optional)</label>
+            <label htmlFor="pageOldUrl">Old Item Link (Optional)</label>
+            <input 
+              type="url" 
+              id="pageOldUrl"
+              className="form-control" 
+              placeholder="https://old..."
+              value={newPageOldUrl}
+              onChange={(e) => setNewPageOldUrl(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="pageUrl">New Item Link (Optional)</label>
             <input 
               type="url" 
               id="pageUrl"
               className="form-control" 
-              placeholder="https://"
+              placeholder="https://new..."
               value={newPageUrl}
               onChange={(e) => setNewPageUrl(e.target.value)}
             />
           </div>
           <button type="submit" className="btn" style={{ height: 'fit-content' }}>
-            Add Page
+            Add Item
           </button>
         </form>
       )}
@@ -224,15 +252,15 @@ function App() {
         {pages.length === 0 ? (
           <div className="empty-state">
             <LayoutTemplate size={48} />
-            <h3>No pages added yet</h3>
-            <p>Click "Add New Page" to start your checklist.</p>
+            <h3>No items added yet</h3>
+            <p>Click "Add New Item" to start your checklist.</p>
           </div>
         ) : (
           <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: '20%' }}>Page Name</th>
+                  <th style={{ width: '20%' }}>Item Name</th>
                   <th style={{ width: '15%' }}>Status</th>
                   <th style={{ width: '30%' }}>Subtasks</th>
                   <th style={{ width: '25%' }}>Remarks</th>
@@ -243,19 +271,28 @@ function App() {
                 {pages.map((page) => (
                   <tr key={page.id}>
                     <td className="page-name" style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <input
                           type="text"
                           className="remarks-input"
                           style={{ fontWeight: 500, padding: '0.25rem 0.5rem', margin: '-0.25rem -0.5rem', width: '100%' }}
                           value={page.name}
                           onChange={(e) => handleUpdatePageName(page.id, e.target.value)}
-                          title="Click to edit page name"
+                          title="Click to edit item name"
                         />
-                        {page.url && (
-                          <a href={page.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex' }} title="Visit Page">
-                            <ExternalLink size={14} />
-                          </a>
+                        {(page.url || page.oldUrl) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingLeft: '0.5rem', fontSize: '0.75rem' }}>
+                            {page.oldUrl && (
+                              <a href={page.oldUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }} title="Visit Old Link">
+                                <span style={{ fontWeight: 500 }}>Old:</span> <ExternalLink size={12} />
+                              </a>
+                            )}
+                            {page.url && (
+                              <a href={page.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }} title="Visit New Link">
+                                <span style={{ fontWeight: 500 }}>New:</span> <ExternalLink size={12} />
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
@@ -288,14 +325,46 @@ function App() {
                         style={{ resize: 'vertical', minHeight: '60px' }}
                       />
                     </td>
-                    <td style={{ textAlign: 'right', verticalAlign: 'top', paddingTop: '1rem' }}>
+                    <td style={{ textAlign: 'right', verticalAlign: 'top', paddingTop: '1rem', position: 'relative' }}>
                       <button 
                         className="btn btn-icon" 
-                        onClick={() => setPageToDelete(page)}
-                        title="Delete page"
+                        onClick={() => setActiveMenuId(activeMenuId === page.id ? null : page.id)}
+                        title="More actions"
                       >
-                        <Trash2 size={18} />
+                        <MoreVertical size={18} />
                       </button>
+
+                      {activeMenuId === page.id && (
+                        <>
+                          <div 
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9 }}
+                            onClick={() => setActiveMenuId(null)}
+                          />
+                          <div className="action-menu" style={{ position: 'absolute', right: '1.5rem', top: '2.5rem', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', zIndex: 10, display: 'flex', flexDirection: 'column', padding: '0.25rem', minWidth: '130px' }}>
+                            <button 
+                              className="btn-menu-item"
+                              onClick={() => {
+                                setPageToEdit(page);
+                                setEditPageName(page.name);
+                                setEditPageUrl(page.url || '');
+                                setEditPageOldUrl(page.oldUrl || '');
+                                setActiveMenuId(null);
+                              }}
+                            >
+                              <Edit2 size={14} /> Edit Item
+                            </button>
+                            <button 
+                              className="btn-menu-item danger"
+                              onClick={() => {
+                                setPageToDelete(page);
+                                setActiveMenuId(null);
+                              }}
+                            >
+                              <Trash2 size={14} /> Delete Item
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -309,11 +378,57 @@ function App() {
       {pageToDelete && (
         <div className="modal-overlay" onClick={() => setPageToDelete(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Delete Page</h3>
+            <h3>Delete Item</h3>
             <p>Are you sure you want to remove <strong>{pageToDelete.name}</strong> from the checklist? This action cannot be undone.</p>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setPageToDelete(null)}>Cancel</button>
               <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {pageToEdit && (
+        <div className="modal-overlay" onClick={() => setPageToEdit(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: '1.5rem' }}>Edit Item</h3>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="editPageName">Item Name</label>
+              <input 
+                type="text" 
+                id="editPageName"
+                className="form-control" 
+                value={editPageName}
+                onChange={(e) => setEditPageName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label htmlFor="editPageOldUrl">Old Item Link (Optional)</label>
+              <input 
+                type="url" 
+                id="editPageOldUrl"
+                className="form-control" 
+                placeholder="https://old..."
+                value={editPageOldUrl}
+                onChange={(e) => setEditPageOldUrl(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="editPageUrl">New Item Link (Optional)</label>
+              <input 
+                type="url" 
+                id="editPageUrl"
+                className="form-control" 
+                placeholder="https://new..."
+                value={editPageUrl}
+                onChange={(e) => setEditPageUrl(e.target.value)}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setPageToEdit(null)}>Cancel</button>
+              <button className="btn" onClick={handleSaveEdit}>Save Changes</button>
             </div>
           </div>
         </div>

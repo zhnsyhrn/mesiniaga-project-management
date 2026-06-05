@@ -131,6 +131,39 @@ body {
   box-shadow: none;
 }
 
+/* Action Menu */
+.action-menu {
+  animation: slideDown 0.2s ease-out;
+}
+
+.btn-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+}
+
+.btn-menu-item:hover {
+  background-color: var(--bg-color);
+}
+
+.btn-menu-item.danger {
+  color: var(--danger-color);
+}
+
+.btn-menu-item.danger:hover {
+  background-color: #FEF2F2; /* light red */
+}
+
 /* Add Form */
 .add-form-card {
   background-color: var(--surface-color);

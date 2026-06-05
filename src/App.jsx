@@ -1,11 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LayoutTemplate, Edit3, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, LayoutTemplate, ExternalLink, CheckCircle } from 'lucide-react';
+
+// Subtasks Component for handling local input state
+const Subtasks = ({ subtasks = [], onAdd, onToggle, onDelete }) => {
+  const [inputValue, setInputValue] = useState('');
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onAdd(inputValue);
+      setInputValue('');
+    }
+  };
+
+  return (
+    <div className="subtasks-container">
+      {subtasks.map(st => (
+        <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <input 
+            type="checkbox" 
+            checked={st.completed} 
+            onChange={() => onToggle(st.id)} 
+            style={{ cursor: 'pointer' }}
+          />
+          <span style={{ 
+            textDecoration: st.completed ? 'line-through' : 'none', 
+            color: st.completed ? 'var(--text-muted)' : 'inherit', 
+            fontSize: '0.875rem', 
+            flex: 1,
+            wordBreak: 'break-word'
+          }}>
+            {st.text}
+          </span>
+          <button 
+            onClick={() => onDelete(st.id)} 
+            className="btn-icon" 
+            style={{ padding: '0.1rem', cursor: 'pointer' }}
+            title="Delete subtask"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      ))}
+      <input 
+        type="text" 
+        className="remarks-input" 
+        style={{ padding: '0.25rem 0.5rem', fontSize: '0.8125rem', marginTop: '0.25rem' }} 
+        placeholder="+ Add subtask (press Enter)"
+        value={inputValue}
+        onChange={e => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+    </div>
+  );
+};
 
 function App() {
   const [pages, setPages] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPageName, setNewPageName] = useState('');
   const [newPageUrl, setNewPageUrl] = useState('');
+  const [toastMessage, setToastMessage] = useState(null);
+  const [pageToDelete, setPageToDelete] = useState(null);
 
   // Load from local storage on initial render
   useEffect(() => {
@@ -17,11 +73,10 @@ function App() {
         console.error("Failed to parse pages from local storage", e);
       }
     } else {
-      // Optional: Add some dummy data if empty initially to show the premium feel
       setPages([
-        { id: '1', name: 'Home Page', url: 'https://example.com', status: 'completed', remarks: 'Approved by design team.' },
-        { id: '2', name: 'About Us', url: '', status: 'in-progress', remarks: 'Waiting for updated team photos.' },
-        { id: '3', name: 'Contact Form', url: '', status: 'not-started', remarks: '' }
+        { id: '1', name: 'Home Page', url: 'https://example.com', status: 'completed', remarks: 'Approved by design team.', subtasks: [{id: 's1', text: 'Hero banner', completed: true}] },
+        { id: '2', name: 'About Us', url: '', status: 'in-progress', remarks: 'Waiting for updated team photos.', subtasks: [{id: 's2', text: 'Team section', completed: false}] },
+        { id: '3', name: 'Contact Form', url: '', status: 'not-started', remarks: '', subtasks: [] }
       ]);
     }
   }, []);
@@ -30,6 +85,13 @@ function App() {
   useEffect(() => {
     localStorage.setItem('mesiniaga-checklist', JSON.stringify(pages));
   }, [pages]);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
 
   const handleAddPage = (e) => {
     e.preventDefault();
@@ -40,18 +102,21 @@ function App() {
       name: newPageName.trim(),
       url: newPageUrl.trim(),
       status: 'not-started',
-      remarks: ''
+      remarks: '',
+      subtasks: []
     };
 
     setPages([...pages, newPage]);
     setNewPageName('');
     setNewPageUrl('');
     setShowAddForm(false);
+    showToast(`"${newPage.name}" added successfully!`);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to remove this page from the checklist?')) {
-      setPages(pages.filter(page => page.id !== id));
+  const confirmDelete = () => {
+    if (pageToDelete) {
+      setPages(pages.filter(page => page.id !== pageToDelete.id));
+      setPageToDelete(null);
     }
   };
 
@@ -67,20 +132,48 @@ function App() {
     ));
   };
 
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'completed': return 'status-badge completed';
-      case 'in-progress': return 'status-badge in-progress';
-      default: return 'status-badge not-started';
-    }
+  const handleUpdatePageName = (id, newName) => {
+    setPages(pages.map(page => 
+      page.id === id ? { ...page, name: newName } : page
+    ));
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'completed': return 'Completed';
-      case 'in-progress': return 'In Progress';
-      default: return 'Not Started';
-    }
+  const handleAddSubtask = (pageId, text) => {
+    if (!text.trim()) return;
+    setPages(pages.map(page => {
+      if (page.id === pageId) {
+        const subtasks = page.subtasks || [];
+        return {
+          ...page,
+          subtasks: [...subtasks, { id: Date.now().toString(), text: text.trim(), completed: false }]
+        };
+      }
+      return page;
+    }));
+  };
+
+  const handleToggleSubtask = (pageId, subtaskId) => {
+    setPages(pages.map(page => {
+      if (page.id === pageId) {
+        return {
+          ...page,
+          subtasks: (page.subtasks || []).map(st => st.id === subtaskId ? { ...st, completed: !st.completed } : st)
+        };
+      }
+      return page;
+    }));
+  };
+
+  const handleDeleteSubtask = (pageId, subtaskId) => {
+    setPages(pages.map(page => {
+      if (page.id === pageId) {
+        return {
+          ...page,
+          subtasks: (page.subtasks || []).filter(st => st.id !== subtaskId)
+        };
+      }
+      return page;
+    }));
   };
 
   return (
@@ -139,18 +232,26 @@ function App() {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: '25%' }}>Page Name</th>
+                  <th style={{ width: '20%' }}>Page Name</th>
                   <th style={{ width: '15%' }}>Status</th>
-                  <th style={{ width: '50%' }}>Remarks</th>
+                  <th style={{ width: '30%' }}>Subtasks</th>
+                  <th style={{ width: '25%' }}>Remarks</th>
                   <th style={{ width: '10%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pages.map((page) => (
                   <tr key={page.id}>
-                    <td className="page-name">
+                    <td className="page-name" style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {page.name}
+                        <input
+                          type="text"
+                          className="remarks-input"
+                          style={{ fontWeight: 500, padding: '0.25rem 0.5rem', margin: '-0.25rem -0.5rem', width: '100%' }}
+                          value={page.name}
+                          onChange={(e) => handleUpdatePageName(page.id, e.target.value)}
+                          title="Click to edit page name"
+                        />
                         {page.url && (
                           <a href={page.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex' }} title="Visit Page">
                             <ExternalLink size={14} />
@@ -158,7 +259,7 @@ function App() {
                         )}
                       </div>
                     </td>
-                    <td>
+                    <td style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
                       <select 
                         className="form-control" 
                         style={{ padding: '0.375rem 0.5rem', width: '100%', cursor: 'pointer' }}
@@ -170,19 +271,27 @@ function App() {
                         <option value="completed">Completed</option>
                       </select>
                     </td>
-                    <td>
-                      <input 
-                        type="text" 
+                    <td style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                      <Subtasks 
+                        subtasks={page.subtasks}
+                        onAdd={(text) => handleAddSubtask(page.id, text)}
+                        onToggle={(subId) => handleToggleSubtask(page.id, subId)}
+                        onDelete={(subId) => handleDeleteSubtask(page.id, subId)}
+                      />
+                    </td>
+                    <td style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                      <textarea 
                         className="remarks-input" 
                         placeholder="Add remarks..."
                         value={page.remarks}
                         onChange={(e) => handleUpdateRemarks(page.id, e.target.value)}
+                        style={{ resize: 'vertical', minHeight: '60px' }}
                       />
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', verticalAlign: 'top', paddingTop: '1rem' }}>
                       <button 
                         className="btn btn-icon" 
-                        onClick={() => handleDelete(page.id)}
+                        onClick={() => setPageToDelete(page)}
                         title="Delete page"
                       >
                         <Trash2 size={18} />
@@ -195,6 +304,30 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {pageToDelete && (
+        <div className="modal-overlay" onClick={() => setPageToDelete(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>Delete Page</h3>
+            <p>Are you sure you want to remove <strong>{pageToDelete.name}</strong> from the checklist? This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setPageToDelete(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="toast-container">
+          <div className="toast">
+            <CheckCircle size={20} className="toast-icon" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

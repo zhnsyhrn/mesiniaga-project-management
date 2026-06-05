@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, LayoutTemplate, Edit3 } from 'lucide-react';
+import { Plus, Trash2, LayoutTemplate, Edit3, ExternalLink } from 'lucide-react';
 
 function App() {
   const [pages, setPages] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPageName, setNewPageName] = useState('');
+  const [newPageUrl, setNewPageUrl] = useState('');
 
   // Load from local storage on initial render
   useEffect(() => {
@@ -18,9 +19,9 @@ function App() {
     } else {
       // Optional: Add some dummy data if empty initially to show the premium feel
       setPages([
-        { id: '1', name: 'Home Page', status: 'completed', remarks: 'Approved by design team.' },
-        { id: '2', name: 'About Us', status: 'in-progress', remarks: 'Waiting for updated team photos.' },
-        { id: '3', name: 'Contact Form', status: 'not-started', remarks: '' }
+        { id: '1', name: 'Home Page', url: 'https://example.com', status: 'completed', remarks: 'Approved by design team.' },
+        { id: '2', name: 'About Us', url: '', status: 'in-progress', remarks: 'Waiting for updated team photos.' },
+        { id: '3', name: 'Contact Form', url: '', status: 'not-started', remarks: '' }
       ]);
     }
   }, []);
@@ -37,12 +38,14 @@ function App() {
     const newPage = {
       id: Date.now().toString(),
       name: newPageName.trim(),
+      url: newPageUrl.trim(),
       status: 'not-started',
       remarks: ''
     };
 
     setPages([...pages, newPage]);
     setNewPageName('');
+    setNewPageUrl('');
     setShowAddForm(false);
   };
 
@@ -107,6 +110,17 @@ function App() {
               autoFocus
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="pageUrl">Page Link (Optional)</label>
+            <input 
+              type="url" 
+              id="pageUrl"
+              className="form-control" 
+              placeholder="https://"
+              value={newPageUrl}
+              onChange={(e) => setNewPageUrl(e.target.value)}
+            />
+          </div>
           <button type="submit" className="btn" style={{ height: 'fit-content' }}>
             Add Page
           </button>
@@ -134,7 +148,16 @@ function App() {
               <tbody>
                 {pages.map((page) => (
                   <tr key={page.id}>
-                    <td className="page-name">{page.name}</td>
+                    <td className="page-name">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {page.name}
+                        {page.url && (
+                          <a href={page.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex' }} title="Visit Page">
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <select 
                         className="form-control" 
